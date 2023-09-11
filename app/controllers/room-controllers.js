@@ -36,11 +36,11 @@ roomControllers.listNonAvailableRooms = async (req, res) => {
     }
 }
 
-roomControllers.singleRoomParticularPg = async (req, res) => {
+roomControllers.singleRoomInParticularPg = async (req, res) => {
     try {
-        const id = req.params.id
+        const roomId = req.params.roomId
         const pgDetailsId = req.query.pgDetailsId
-        const room = await Room.findOne({_id: id, pgDetailsId: pgDetailsId }).populate('pgDetailsId', 'name')
+        const room = await Room.findOne({_id: roomId, pgDetailsId: pgDetailsId }).populate('pgDetailsId', 'name')
         
         if (!room) {
             return res.status(404).json({ message: 'Room not found' })
@@ -55,7 +55,7 @@ roomControllers.create = async (req, res) => {
     try {
         const body = req.body
         const pgDetailsId = req.params.pgDetailsId
-        //console.log('pgId', pgId)
+        console.log('pgId', pgDetailsId)
         const hostId = req.user.id
     
         // Create an array to store the newly created rooms
@@ -82,27 +82,33 @@ roomControllers.create = async (req, res) => {
     
         res.status(201).json({ message: 'Rooms added successfully', rooms: newRooms })
     } catch (error) {
-        //console.error(error)
-        res.status(500).json({ message: 'Internal Server Error' })
+        console.error(error)
+        res.status(404).json({ message: 'Bad Request' })
     }
 }
   
 
 roomControllers.destroy = async (req, res) => {
     try {
-        const id = req.params.id
+        const roomId = req.params.roomId
 
         // Check if there are residents in the room
-        const residentsInRoom = await Residents.findOne({ roomId : id , hostId : req.user.id})
-        console.log('residents', residentsInRoom)
+        const residentsInRoom = await Residents.findOne({ roomId : roomId , hostId : req.user.id})
+        //console.log('residents', residentsInRoom)
         if (residentsInRoom) {
-            return res.status(400).json({ message: 'Cannot delete room. Residents are occupying the room.' })
+            // If there are residents, send an error response
+            res.json({ message: 'Cannot delete room. Residents are occupying the room.' })
+        } else {
+            // No residents in the room, so you can proceed to delete the room
+            const response = await Room.findOneAndDelete({ _id: roomId })
+            
+            if (!response) {
+                res.status(404).json({ message: 'Room not found.' })
+            }
+
+            // Room deleted successfully, send a success response
+            res.json({ message: 'Room deleted successfully.' })
         }
-
-        // No residents in the room, delete the room
-        const response = await Room.findOneAndDelete({ _id: id })
-
-        res.json(response)
     } catch (e) {
         res.status(500).json({ error: e.message })
     }

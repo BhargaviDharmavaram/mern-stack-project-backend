@@ -12,7 +12,6 @@ const razorpay = new Razorpay({
     key_id: process.env.RAZORPAY_KEY_ID,
     key_secret: process.env.RAZORPAY_SECRET_KEY
 })
-
 paymentsControllers.sendPaymentReminders = async (req, res) => {
     try {
         const pgDetailsId = req.params.pgDetailsId
@@ -28,56 +27,65 @@ paymentsControllers.sendPaymentReminders = async (req, res) => {
 
         // Iterate through residents and send payment reminder emails
         for (const resident of residentsInPG) {
-            if (!resident.roomId) {
-                console.error('roomId not populated for resident:', resident.name)
-                continue
+            try {
+                if (!resident.roomId) {
+                    console.error('roomId not populated for resident:', resident.name)
+                    continue
+                }
+
+                const sharingType = resident.roomId.sharing
+
+                // Find the pricing based on resident's sharing type
+                const pricing = pgDetails.pricing.find(item => item.share === sharingType)
+
+                if (!pricing) {
+                    console.error('Pricing not found for sharing type:', sharingType)
+                    continue
+                }
+
+                const paymentAmount = pricing.amount
+
+                // Create a Razorpay order
+                const order = await razorpay.orders.create({
+                    amount: paymentAmount * 100, // Convert to paise
+                    currency: 'INR',
+                    receipt: `payment_${Date.now()}`
+                })
+
+                // Construct the payment link using order ID (based on your front-end API)
+                const paymentLink = `http://localhost:3000/payment/${order.id}`
+                console.log(paymentLink)
+
+                // Save payment data into the database
+                const newPayment = new Payment({
+                    pgDetailsId: pgDetails._id,
+                    residentId: resident._id,
+                    amount: paymentAmount,
+                    paymentMethod: 'razorpay',
+                    status: 'pending',
+                    paymentDate: new Date(),
+                    razorPayId: order.id
+                })
+
+                await newPayment.save()
+                const emailSubject = 'Payment Reminder'
+                const emailText = `Dear ${resident.name},\n\nThis is a friendly reminder to pay your monthly rent of ${paymentAmount}.\n\nYou can make the payment using the following link: ${paymentLink}\n\nPlease make the payment before the due date. Thank you!\n\nRegards,\nThe PG Team`
+
+                // Send payment reminder email to resident
+                const emailSent = await sendMail(resident.email, emailSubject, emailText)
+                if (emailSent) {
+                    console.log(`Email sent to ${resident.name}`)
+                } else {
+                    console.error(`Error sending email to ${resident.name}`)
+                }
+            } catch (emailError) {
+                console.error(`Error sending email to ${resident.name}:`, emailError)
             }
-
-            const sharingType = resident.roomId.sharing
-
-            // Find the pricing based on resident's sharing type
-            const pricing = pgDetails.pricing.find(item => item.share === sharingType)
-
-            if (!pricing) {
-                console.error('Pricing not found for sharing type:', sharingType)
-                continue
-            }
-
-            const paymentAmount = pricing.amount
-
-            // Create a Razorpay order
-            const order = await razorpay.orders.create({
-                amount: paymentAmount * 100, // Convert to paise
-                currency: 'INR',
-                receipt: `payment_${Date.now()}`
-            })
-
-            
-            // Construct the payment link using  order ID and this is based on my front-end api 
-            const paymentLink = `http://localhost:3000/payment/${order.id}`
-            console.log(paymentLink)
-            // Save payment data into the database
-            const newPayment = new Payment({
-                pgDetailsId: pgDetails._id,
-                residentId: resident._id,
-                amount: paymentAmount,
-                paymentMethod: 'razorpay',
-                status: 'pending',
-                paymentDate: new Date() ,
-                razorPayId : order.id
-            })
-
-            await newPayment.save()
-            const emailSubject = 'Payment Reminder'
-            const emailText = `Dear ${resident.name},\n\nThis is a friendly reminder to pay your monthly rent of ${paymentAmount}.\n\nYou can make the payment using the following link: ${paymentLink}\n\nPlease make the payment before the due date. Thank you!\n\nRegards,\nThe PG Team`
-
-            // Send payment reminder email to resident
-            sendMail(resident.email, emailSubject, emailText)
         }
-        return res.status(200).json({ message: 'Payment reminders sent successfully.'})
+        res.status(200).json({ message: 'Payment reminders sent successfully.' })
     } catch (error) {
         console.error('Error sending payment reminders:', error)
-        return res.status(500).json({ error: 'Internal server error' })
+        res.status(404).json({ error: 'Error sending payment reminders' })
     }
 }
 
@@ -148,23 +156,110 @@ paymentsControllers.paymentConfirmation = async (req, res) => {
     }
 }
 
-paymentsControllers.getPGPayments = async (req, res) => {
+paymentsControllers.getCompletedPayments = async (req, res) => {
     try {
-        const pgDetailsId = req.params.pgDetailsId
+        const hostId = req.user.id
+        console.log('hostId', hostId)
 
-        // Fetch completed and pending payments for the PG
-        const completedPayments = await Payment.find({ 'pgDetailsId': pgDetailsId, status: 'completed' })
+        // Step 1: Find the PG associated with the host using hostId
+        const pg = await PgDetails.findOne({ host: hostId })
+
+        if (!pg) {
+            return res.status(404).json({ error: 'PG not found for the host' })
+        }
+
+        // Step 2: Fetch completed payments for the PG
+        const completedPayments = await Payment.find({ pgDetailsId: pg._id, status: 'completed' })
             .populate('residentId', 'name email')
             .populate('pgDetailsId', 'name')
-        const pendingPayments = await Payment.find({ 'pgDetailsId': pgDetailsId, status: 'pending' })
-            .populate('residentId', 'name email')
-            .populate('pgDetailsId', 'name')
 
-        res.status(200).json({ completedPayments, pendingPayments })
-    } catch (e) {
-        console.error('Error fetching PG payments:', error)
-        res.status(404).json({ error: e.message })
+        res.status(200).json(completedPayments)
+    } catch (error) {
+        console.error('Error fetching completed payments:', error)
+        res.status(500).json({ error: 'Internal server error' })
     }
 }
+
+paymentsControllers.getPendingPayments = async (req, res) => {
+    try {
+        const hostId = req.user.id
+        console.log('hostId', hostId)
+
+        // Step 1: Find the PG associated with the host using hostId
+        const pg = await PgDetails.findOne({ host: hostId })
+
+        if (!pg) {
+            return res.status(404).json({ error: 'PG not found for the host' })
+        }
+
+        // Step 2: Fetch completed payments for the PG
+        const pendingPayments = await Payment.find({ pgDetailsId: pg._id, status: 'pending' })
+            .populate('residentId', 'name email')
+            .populate('pgDetailsId', 'name')
+        // Calculate total amount for pending payments
+        // const totalPendingAmount = pendingPayments.reduce((total, payment) => {
+        //     return total + payment.amount
+        // }, 0)
+
+        // res.status(200).json({ pendingPayments, totalPendingAmount })
+        res.status(200).json(pendingPayments)
+    } catch (error) {
+        console.error('Error fetching completed payments:', error)
+        res.status(500).json({ error: 'Internal server error' })
+    }
+}
+
+paymentsControllers.getCompletedPaymentsTotal = async (req, res) => {
+    try {
+        const hostId = req.user.id
+
+        // Step 1: Find the PG associated with the host using hostId
+        const pg = await PgDetails.findOne({ host: hostId })
+
+        if (!pg) {
+            return res.status(404).json({ error: 'PG not found for the host' })
+        }
+
+        // Step 2: Fetch completed payments for the PG
+        const completedPayments = await Payment.find({ pgDetailsId: pg._id, status: 'completed' })
+
+        // Calculate total amount for completed payments
+        const totalCompletedAmount = completedPayments.reduce((total, payment) => {
+            return total + payment.amount
+        }, 0)
+
+        res.status(200).json(totalCompletedAmount)
+    } catch (error) {
+        console.error('Error fetching completed payments total:', error)
+        res.status(500).json({ error: 'Internal server error' })
+    }
+}
+
+paymentsControllers.getPendingPaymentsTotal = async (req, res) => {
+    try {
+        const hostId = req.user.id
+
+        // Step 1: Find the PG associated with the host using hostId
+        const pg = await PgDetails.findOne({ host: hostId })
+
+        if (!pg) {
+            return res.status(404).json({ error: 'PG not found for the host' })
+        }
+
+        // Step 2: Fetch pending payments for the PG
+        const pendingPayments = await Payment.find({ pgDetailsId: pg._id, status: 'pending' })
+
+        // Calculate total amount for pending payments
+        const totalPendingAmount = pendingPayments.reduce((total, payment) => {
+            return total + payment.amount
+        }, 0)
+
+        res.status(200).json( totalPendingAmount )
+    } catch (error) {
+        console.error('Error fetching pending payments total:', error)
+        res.status(500).json({ error: 'Internal server error' })
+    }
+}
+
 
 module.exports = paymentsControllers

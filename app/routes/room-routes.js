@@ -11,10 +11,10 @@ router.get('/allRooms', authenticateUser, (req, res, next)=>{
 }, authorizeUser, roomControllers.listAllRooms)
 
 // Get details of a particular room in a PG
-router.get('/particularRoom/:id', authenticateUser, (req, res, next)=>{
+router.get('/particularRoom/:roomId', authenticateUser, (req, res, next)=>{
     req.permittedRoles = ['pg_admin']
     next()
-}, authorizeUser, roomControllers.singleRoomParticularPg)
+}, authorizeUser, roomControllers.singleRoomInParticularPg)
 
 // Add a room by PG Admin
 router.post('/addRoom/:pgDetailsId', authenticateUser, (req, res, next)=>{
@@ -29,7 +29,7 @@ router.put('/updateRoom/:id', authenticateUser, (req, res, next)=>{
 }, authorizeUser, roomControllers.update)
 
 // Destroy a room by PG Admin
-router.delete('/destroyRoom/:id', authenticateUser, (req, res, next)=>{
+router.delete('/destroyRoom/:roomId', authenticateUser, (req, res, next)=>{
     req.permittedRoles = ['pg_admin']
     next()
 }, authorizeUser, roomControllers.destroy)

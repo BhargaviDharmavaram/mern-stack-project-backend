@@ -10,7 +10,6 @@ router.post('/register', usersControllers.register)
 router.post('/login', usersControllers.login)
 
 
-
 // Get user account details
 router.get('/account', authenticateUser, usersControllers.account)
 

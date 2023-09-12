@@ -53,7 +53,7 @@ router.delete('/destroyResident/:id', authenticateUser, (req, res, next)=>{
 }, authorizeUser, residentsControllers.destroy)
 
 // Get deleted residents associated with a PG (for PG Admin)
-router.get('/admin/softDeletedResidents/:id', authenticateUser, (req, res, next)=>{
+router.get('/admin/softDeletedResidents', authenticateUser, (req, res, next)=>{
     req.permittedRoles = ['pg_admin']
     next()
 }, authorizeUser, residentsControllers.getDeletedResidents)

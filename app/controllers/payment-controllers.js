@@ -168,12 +168,21 @@ paymentsControllers.getCompletedPayments = async (req, res) => {
             return res.status(404).json({ error: 'PG not found for the host' })
         }
 
-        // Step 2: Fetch completed payments for the PG
+        // Step 2: Fetch pending payments for the PG, excluding payments for deleted residents
         const completedPayments = await Payment.find({ pgDetailsId: pg._id, status: 'completed' })
-            .populate('residentId', 'name email')
+            .populate({
+                path: 'residentId',
+                select: 'name email deleted',
+                match: { deleted: false } // Exclude deleted residents
+            })
             .populate('pgDetailsId', 'name')
 
-        res.status(200).json(completedPayments)
+        // Filter out payments where residentId is null (resident deleted) or deleted is true
+        const filteredCompletedPayments = completedPayments.filter((ele) => {
+            return ele.residentId && !ele.residentId.deleted
+        })
+
+        res.status(200).json(filteredCompletedPayments)
     } catch (error) {
         console.error('Error fetching completed payments:', error)
         res.status(500).json({ error: 'Internal server error' })
@@ -192,17 +201,21 @@ paymentsControllers.getPendingPayments = async (req, res) => {
             return res.status(404).json({ error: 'PG not found for the host' })
         }
 
-        // Step 2: Fetch completed payments for the PG
+        // Step 2: Fetch pending payments for the PG, excluding payments for deleted residents
         const pendingPayments = await Payment.find({ pgDetailsId: pg._id, status: 'pending' })
-            .populate('residentId', 'name email')
+            .populate({
+                path: 'residentId',
+                select: 'name email deleted',
+                match: { deleted: false } // Exclude deleted residents
+            })
             .populate('pgDetailsId', 'name')
-        // Calculate total amount for pending payments
-        // const totalPendingAmount = pendingPayments.reduce((total, payment) => {
-        //     return total + payment.amount
-        // }, 0)
 
-        // res.status(200).json({ pendingPayments, totalPendingAmount })
-        res.status(200).json(pendingPayments)
+        // Filter out payments where residentId is null (resident deleted) or deleted is true
+        const filteredPendingPayments = pendingPayments.filter((ele) => {
+            return ele.residentId && !ele.residentId.deleted
+        })
+
+        res.status(200).json(filteredPendingPayments)
     } catch (error) {
         console.error('Error fetching completed payments:', error)
         res.status(500).json({ error: 'Internal server error' })
@@ -222,10 +235,18 @@ paymentsControllers.getCompletedPaymentsTotal = async (req, res) => {
 
         // Step 2: Fetch completed payments for the PG
         const completedPayments = await Payment.find({ pgDetailsId: pg._id, status: 'completed' })
+        .populate({
+            path: 'residentId',
+            select: 'name email deleted',
+            match: { deleted: false } // Exclude deleted residents
+        })
 
-        // Calculate total amount for completed payments
+        // Calculate total amount for completed payments, excluding payments for deleted residents
         const totalCompletedAmount = completedPayments.reduce((total, payment) => {
-            return total + payment.amount
+            if (payment.residentId && !payment.residentId.deleted) {
+                return total + payment.amount
+            }
+            return total
         }, 0)
 
         res.status(200).json(totalCompletedAmount)
@@ -248,13 +269,21 @@ paymentsControllers.getPendingPaymentsTotal = async (req, res) => {
 
         // Step 2: Fetch pending payments for the PG
         const pendingPayments = await Payment.find({ pgDetailsId: pg._id, status: 'pending' })
+        .populate({
+            path: 'residentId',
+            select: 'name email deleted',
+            match: { deleted: false } // Exclude deleted residents
+        })
 
-        // Calculate total amount for pending payments
-        const totalPendingAmount = pendingPayments.reduce((total, payment) => {
-            return total + payment.amount
+       // Calculate total amount for completed payments, excluding payments for deleted residents
+       const totalPendingAmount = pendingPayments.reduce((total, payment) => {
+            if (payment.residentId && !payment.residentId.deleted) {
+                return total + payment.amount
+            }
+            return total
         }, 0)
 
-        res.status(200).json( totalPendingAmount )
+        res.status(200).json(totalPendingAmount)
     } catch (error) {
         console.error('Error fetching pending payments total:', error)
         res.status(500).json({ error: 'Internal server error' })

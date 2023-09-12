@@ -107,7 +107,7 @@ roomControllers.destroy = async (req, res) => {
             }
 
             // Room deleted successfully, send a success response
-            res.json({ message: 'Room deleted successfully.' })
+            res.json(response)
         }
     } catch (e) {
         res.status(500).json({ error: e.message })

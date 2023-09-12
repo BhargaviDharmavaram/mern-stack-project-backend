@@ -158,7 +158,7 @@ residentsControllers.getResidentPgDetails = async (req, res) => {
         // Find the resident based on the userId
         const resident = await Residents.findOne({ userId })
             .populate('pgDetailsId', 'name')
-            .populate('roomId', 'roomNumber floor')
+            .populate('roomId', 'roomNumber floor sharing')
 
         if (!resident) {
             return res.status(404).json({ message: 'Resident not found' })
@@ -198,13 +198,14 @@ residentsControllers.update = async (req, res) => {
         // Merge updates from body with file updates
         const mergedUpdate = { ...body, ...updateFields }
         // Find the original resident data before update
-        const originalResident = await Residents.findById(residentId).populate('roomId', 'isAvailable sharing')
+        const originalResident = await Residents.findById(residentId).populate('roomId', 'isAvailable sharing roomNumber floor')
 
         const updateResident = await Residents.findOneAndUpdate(
             {_id : residentId},
             mergedUpdate,
             { new: true, runValidators: true }
         ).populate('pgDetailsId', 'name contact')
+        .populate('roomId' , 'sharing roomNumber floor')
 
         // Check if the room assignment has changed
         if (originalResident.roomId && updateResident.roomId && originalResident.roomId.toString() !== updateResident.roomId.toString()) {
@@ -264,12 +265,14 @@ residentsControllers.destroy = async (req, res) => {
 // for getting the deleted residents to the admin in the particular pg
 residentsControllers.getDeletedResidents = async(req, res) => {
     try {
-        const id = req.params.id // Extract the pgId from the request parameters
-        console.log('pgId', id)
+        // const id = req.params.id // Extract the pgId from the request parameters
+        // console.log('pgId', id)
+        const hostId = req.user.id
+        console.log('hostId', hostId)
         
         // Fetch deleted residents associated with the PG and populate the pgDetailsId field
         const deletedResidents = await Residents.findDeleted({
-            pgDetailsId: id,
+            hostId : hostId,
             deleted: true
         }).populate('pgDetailsId', 'name')
         

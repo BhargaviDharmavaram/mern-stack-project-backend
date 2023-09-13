@@ -9,6 +9,10 @@ app.use(express.json())
 app.use(cors())
 configureDB()
 
+app.use(function(req, res, next){
+    console.log(`${req.method} - ${JSON.stringify(req.body)} - ${JSON.stringify(req.params)} - ${req.url} ` )
+    next()
+})
 
 // Import your routes
 const usersRoutes = require('./app/routes/users-routes')

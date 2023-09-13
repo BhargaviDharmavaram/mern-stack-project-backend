@@ -12,16 +12,29 @@ roomControllers.listAllRooms = async(req,res)=>{
         res.status(404).json(e.message)
     }
 }
-// used to show the available rooms i.e when isAvailable is false to the resident and admin 
+// used to show the available rooms i.e when isAvailable is false to the resident 
 roomControllers.listAvailableRooms = async (req, res) => {
     try {
         const hostId = req.user.id
+        console.log('hostId', hostId)
         const availableRooms = await Room.find({ hostId : hostId, isAvailable: false })
         res.json(availableRooms)
     } catch (e) {
         res.status(404).json(e.message)
     }
 }
+
+// used to show the available rooms i.e when isAvailable is false to the resident 
+roomControllers.listAvailableRoomsForResident = async (req, res) => {
+    try {
+        const pgDetailsId = req.params.pgDetailsId
+        const availableRooms = await Room.find({ pgDetailsId : pgDetailsId, isAvailable: false })
+        res.json(availableRooms)
+    } catch (e) {
+        res.status(404).json(e.message)
+    }
+}
+
 
 
 // used to show the nonavailable rooms i.e when isAvailable is true to the admin i.e filled rooms

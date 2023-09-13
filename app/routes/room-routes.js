@@ -34,11 +34,16 @@ router.delete('/destroyRoom/:roomId', authenticateUser, (req, res, next)=>{
     next()
 }, authorizeUser, roomControllers.destroy)
 
-// List only available rooms (for PG Admin and PG Residents)
+// List only available rooms (for PG Admin )
 router.get('/availableRooms', authenticateUser, (req, res, next)=>{
-    req.permittedRoles = ['pg_admin', 'pg_resident']
+    req.permittedRoles = ['pg_admin']
     next()
 }, authorizeUser, roomControllers.listAvailableRooms)
+
+router.get('/availableRoomsForResident/:pgDetailsId',authenticateUser, (req, res, next)=>{
+    req.permittedRoles = ['pg_resident']
+    next()
+}, authorizeUser, roomControllers.listAvailableRoomsForResident )
 
 // List only non-available rooms (for PG Admin)
 router.get('/unAvailableRooms', authenticateUser, (req, res, next)=>{

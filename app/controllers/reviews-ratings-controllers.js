@@ -12,14 +12,14 @@ ratingsAndReviewsControllers.addReview = async (req, res) => {
     
         // Fetch the resident based on the user ID
         const resident = await Residents.findOne({ userId: userId })
-        console.log('resident', resident)
+        //console.log('resident', resident)
         if (!resident) {
           return res.status(404).json({ error: 'Resident not found' })
         }
     
         // Fetch the PG details where the resident is staying
         const pgDetails = await PgDetails.findById(resident.pgDetailsId)
-        console.log('pgDetails', pgDetails)
+        //console.log('pgDetails', pgDetails)
         if (!pgDetails) {
           return res.status(404).json({ error: 'PG details not found' })
         }

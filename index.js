@@ -1,6 +1,6 @@
 const express = require('express')
 const cors = require('cors')
-
+const morgan = require('morgan')
 
 require('dotenv').config()
 const configureDB = require('./config/db')
@@ -9,10 +9,20 @@ app.use(express.json())
 app.use(cors())
 configureDB()
 
-app.use(function(req, res, next){
-    console.log(`${req.method} - ${JSON.stringify(req.body)} - ${JSON.stringify(req.params)} - ${req.url} ` )
-    next()
-})
+//Using format string of predefined tokens - Morgan logging configuration included in a single string format:
+// app.use(morgan((tokens, req, res) => { return [ tokens.method(req, res), tokens.status(req, res), tokens.url(req, res), JSON.stringify(req.params), JSON.stringify(req.body), tokens['response-time'](req, res) + 'ms', ].join(' '); }))
+
+// Use Morgan with a custom format
+app.use(morgan((tokens, req, res) => {
+    return [
+      tokens.method(req, res),
+      tokens.status(req, res),
+      tokens.url(req, res),
+      JSON.stringify(req.params), // Log req.params as JSON
+      JSON.stringify(req.body),   // Log req.body as JSON
+      tokens['response-time'](req, res) + 'ms',
+    ].join(' ')
+}))
 
 // Import your routes
 const usersRoutes = require('./app/routes/users-routes')

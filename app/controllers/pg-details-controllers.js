@@ -19,21 +19,21 @@ pgDetailsControllers.allPgList = async (req, res) =>{
     }
 }
 
-pgDetailsControllers.getAdminPg = async (req, res) => {
-    try{
-        const hostId = req.user.id
-        const PG = await PgDetails.findOne({host : hostId})
-        res.json(PG)
+// pgDetailsControllers.getAdminPg = async (req, res) => {
+//     try{
+//         const hostId = req.user.id
+//         const PG = await PgDetails.findOne({host : hostId})
+//         res.json(PG)
 
-    }catch(e){
-        res.json(e.message)
-    }
-}
+//     }catch(e){
+//         res.json(e.message)
+//     }
+// }
 
 pgDetailsControllers.showsinglePg = async (req, res) => {
     try{
-        const id = req.params.id
-        const showPg = await PgDetails.findOne({_id: id}).populate({
+        const pgDetailsId = req.params.pgDetailsId
+        const showPg = await PgDetails.findOne({_id: pgDetailsId}).populate({
             path: 'reviews',
             select: 'review residentId',
             populate: {
@@ -145,6 +145,18 @@ pgDetailsControllers.destroy = async (req, res) => {
        const response = await PgDetails.findOneAndDelete({_id : id})
        res.json(response) 
 
+    }catch(e){
+        res.status(404).json({ error: e.message })
+    }
+}
+
+
+//for finding the PGs for admin - how many PGs he/she  have
+pgDetailsControllers.getAllPgForAdmin = async (req, res) => {
+    try{
+        const hostId = req.user.id
+        const allPgsForHost = await PgDetails.find({host : hostId})
+        res.json(allPgsForHost)
     }catch(e){
         res.status(404).json({ error: e.message })
     }

@@ -9,45 +9,52 @@ ratingsAndReviewsControllers.addReview = async (req, res) => {
     try {
         const userId = req.user.id
         const body = req.body
-    
+
+        //console.log(body)
+
         // Fetch the resident based on the user ID
         const resident = await Residents.findOne({ userId: userId })
-        //console.log('resident', resident)
+
         if (!resident) {
-          return res.status(404).json({ error: 'Resident not found' })
+            return res.status(404).json({ error: 'You are not a resident in this PG, so you are denied for writing a review' })
         }
-    
+
         // Fetch the PG details where the resident is staying
         const pgDetails = await PgDetails.findById(resident.pgDetailsId)
-        //console.log('pgDetails', pgDetails)
+
         if (!pgDetails) {
-          return res.status(404).json({ error: 'PG details not found' })
+            return res.status(404).json({ error: 'PG details not found' })
         }
-    
+
+        // Check if the selected PG matches the resident's PG
+        if (body.pgDetailsId.toString() !== pgDetails._id.toString()) {
+            return res.status(403).json({ error: 'You can only add a review for the PG where you are currently staying' })
+        }
+
         // Create a new review
         const newReview = new ReviewsAndRatings({
             ...body,
             pgDetailsId: pgDetails._id,
             residentId: resident._id,
         })
-    
+
         await newReview.save()
-    
+
         // Add the review to PG details' reviews array
         pgDetails.reviews.push(newReview)
         await pgDetails.save()
-    
+
         res.status(201).json({
-          message: 'Review added successfully',
-          review: {
-            ...newReview.toObject(),
-            residentName: resident.name,
-          },
-        })
-      } catch (error) {
+                ...newReview.toObject(),
+                residentName: resident.name,
+            }
+        )
+    } catch (error) {
+        console.log('error', error)
         res.status(500).json({ error: 'Internal server error' })
-      }
+    }
 }
+
 
 
 ratingsAndReviewsControllers.averageRating = async (req, res) => {
@@ -110,66 +117,124 @@ ratingsAndReviewsControllers.averageRating = async (req, res) => {
 }
 
 
-ratingsAndReviewsControllers.listAllReviews = async (req, res) => {
-  try {
-    const pgId = req.params.pgId
-    console.log('Requested pgId:', pgId)
+ratingsAndReviewsControllers.listAllReviewsForPGAdmin = async (req, res) => {
+    try{
+        const hostId = req.user.id
+        // fetch the pgDetails by using hostId from the token
+        const pgDetails = await PgDetails.findOne({host : hostId})
+        console.log('pgDetails', pgDetails)
+        if (!pgDetails) {
+            return res.json({ error: 'No PG details found for the host.' })
+        }
 
-    const allReviews = await ReviewsAndRatings.find({ pgDetailsId: pgId })
-    console.log('Retrieved reviews:', allReviews)
-
-    if (!allReviews || allReviews.length === 0) {
-      return res.status(404).json({ message: 'No reviews found for this PG' })
+        //after getting pgDetails then find the reviews for that PG
+        const allReviews = await ReviewsAndRatings.find({ pgDetailsId: pgDetails._id }).populate('residentId', 'name')
+        res.json(allReviews)
+    }catch(e){
+        console.error('Error fetching reviews:', e)
+        res.status(404).json(e.message)
     }
-    res.json(allReviews)
-  } catch (e) {
-    console.error('Error fetching reviews:', e)
-    res.status(404).json(e.message)
-  }
 }
 
+ratingsAndReviewsControllers.listAllReviewsForSelectedPg = async (req, res) => {
+    try{
+        const pgDetailsId = req.params.pgDetailsId
+        console.log("pgDetailsId", pgDetailsId)
+        const allReviews = await ReviewsAndRatings.find({ pgDetailsId: pgDetailsId }).populate('residentId', 'name')
+        console.log('Retrieved reviews:', allReviews)
+
+        res.json(allReviews)
+
+    }catch(e){
+        console.error('Error fetching reviews:', e)
+        res.status(404).json(e.message)
+    }
+}
+
+
 ratingsAndReviewsControllers.updateReview = async (req, res) => {
-    try {
-        const reviewId  = req.params.reviewId 
-        const body = req.body
-  
-        if (!reviewId) {
+    try{
+        const reviewId = req.params.reviewId
+        const userId = req.user.id
+
+        // Step 1: Find the userId in the Residents model to get the residentId
+        const resident = await Residents.findOne({ userId: userId })
+
+        if (!resident) {
+            return res.status(403).json({ error: 'You are not authorized to update this review' })
+        }
+
+        // Step 2: Check if the reviewId is present in the ReviewsAndRatings model
+        const existingReview = await ReviewsAndRatings.findById(reviewId)
+
+        if (!existingReview) {
             return res.status(404).json({ error: 'Review not found' })
         }
-  
-        const updatedReview = await ReviewsAndRatings.findByIdAndUpdate(reviewId,body, {new : true, runValidators :   true})
-  
-        res.json({ message: 'Review updated successfully', updatedReview: updatedReview})
-    } 
-    catch (e) 
-    {
-        res.status(404).json(e.message)
+
+        // Step 3: Compare the residentId associated with the review and the residentId obtained from Residents
+        if (existingReview.residentId.toString() !== resident._id.toString()) {
+            return res.status(403).json({ error: 'You are not authorized to update this review' })
+        }
+
+        // Step 4: Update the review if authorized
+        const updatedReview = await ReviewsAndRatings.findOneAndUpdate(
+            {_id : reviewId },
+            req.body,
+            { new: true, runValidators: true }
+        )
+
+        res.json(updatedReview)
+    } catch (e) {
+        console.error(e)
+        res.status(500).json({ error: 'Internal server error' })
     }
 }
 
 ratingsAndReviewsControllers.destroyReview = async (req, res) => {
     try{
         const reviewId = req.params.reviewId
-
-        // Find the review by ID and get its associated pgDetailsId
+        const userId = req.user.id
+    
+        // Step 1: Find the userId in the Residents model to get the residentId
+        const resident = await Residents.findOne({ userId: userId })
+    
+        if (!resident) {
+        return res.status(403).json({ error: 'You are not authorized to delete this review' })
+        }
+    
+        // Step 2: Check if the reviewId is present in the ReviewsAndRatings model
         const reviewToDelete = await ReviewsAndRatings.findById(reviewId)
+    
         if (!reviewToDelete) {
             return res.status(404).json({ error: 'Review not found' })
         }
+    
+        // Step 3: Compare the residentId associated with the review and the residentId obtained from Residents
+        if (reviewToDelete.residentId.toString() !== resident._id.toString()) {
+            return res.status(403).json({ error: 'You are not authorized to delete this review' })
+        }
+    
+        // Step 4: Retrieve the pgDetailsId associated with the review
         const pgDetailsId = reviewToDelete.pgDetailsId
-
-        // Delete the review
+    
+        // Step 5: Check if the pgDetailsId matches the pgDetailsId associated with the resident from Residents
+        if (pgDetailsId.toString() !== resident.pgDetailsId.toString()) {
+            return res.status(403).json({ error: 'You are not authorized to delete this review for this PG' })
+        }
+    
+        // Step 6: Delete the review and update the references
         const destroyReview = await reviewToDelete.deleteOne()
-
-        // Remove the reference to the deleted review from pgDetails
+    
         const pgDetails = await PgDetails.findById(pgDetailsId)
         if (pgDetails) {
             pgDetails.reviews.pull(reviewId)
             await pgDetails.save()
-        }else{
+        } else {
             return res.status(404).json({ message: `PG Details not found ${pgDetailsId}.` })
         }
-        res.json({ message: 'Review deleted successfully' , destroyReview : destroyReview})
+    
+        res.json(destroyReview)
+     
     }
     catch(e){
         res.status(404).json(e.message)

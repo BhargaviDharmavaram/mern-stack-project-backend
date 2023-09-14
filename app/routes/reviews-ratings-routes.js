@@ -17,11 +17,17 @@ router.get('/averageRating', authenticateUser, (req, res, next) => {
     next()
 }, authorizeUser, ratingsAndReviewsControllers.averageRating)
 
-// Get all reviews for a PG
-router.get('/allReviews/:pgId', authenticateUser, (req, res, next) => {
-    req.permittedRoles = ['pg_admin', 'pg_resident']
+// Get all reviews for a PG Admin 
+router.get('/allReviewsForAdmin', authenticateUser, (req, res, next) => {
+    req.permittedRoles = ['pg_admin']
     next()
-}, authorizeUser, ratingsAndReviewsControllers.listAllReviews)
+}, authorizeUser, ratingsAndReviewsControllers.listAllReviewsForPGAdmin)
+
+//Get all reviews for particular Pg based on the pgDetailsId for users
+router.get('/allReviewsForSelectedPg/:pgDetailsId', authenticateUser, (req, res, next) => {
+    req.permittedRoles = ['pg_resident']
+    next()
+}, authorizeUser, ratingsAndReviewsControllers.listAllReviewsForSelectedPg)
 
 // Update a review by ID by the resident
 router.put('/updateReview/:reviewId', authenticateUser, (req, res, next) => {

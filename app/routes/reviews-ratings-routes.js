@@ -12,13 +12,13 @@ router.post('/addReview', authenticateUser, (req, res, next) => {
 }, authorizeUser, ratingsAndReviewsControllers.addReview)
 
 // Calculate average rating for a particular PG
-router.get('/averageRating', authenticateUser, (req, res, next) => {
+router.get('/averageRating/:pgDetailsId', authenticateUser, (req, res, next) => {
     req.permittedRoles = ['pg_resident', 'pg_admin']
     next()
 }, authorizeUser, ratingsAndReviewsControllers.averageRating)
 
 // Get all reviews for a PG Admin 
-router.get('/allReviewsForAdmin', authenticateUser, (req, res, next) => {
+router.get('/allReviewsForAdmin/:pgDetailsId', authenticateUser, (req, res, next) => {
     req.permittedRoles = ['pg_admin']
     next()
 }, authorizeUser, ratingsAndReviewsControllers.listAllReviewsForPGAdmin)

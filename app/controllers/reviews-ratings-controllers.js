@@ -31,6 +31,12 @@ ratingsAndReviewsControllers.addReview = async (req, res) => {
             return res.status(403).json({ error: 'You can only add a review for the PG where you are currently staying' })
         }
 
+        // Check if the resident has already written 2 reviews
+        const residentReviews = await ReviewsAndRatings.find({ residentId: resident._id })
+        if (residentReviews.length >= 2) {
+            return res.status(400).json({ error: 'You have already submitted the maximum allowed number of reviews (2)' })
+        }
+
         // Create a new review
         const newReview = new ReviewsAndRatings({
             ...body,
@@ -55,15 +61,13 @@ ratingsAndReviewsControllers.addReview = async (req, res) => {
     }
 }
 
-
-
 ratingsAndReviewsControllers.averageRating = async (req, res) => {
     try {
         const hostId = req.user.id // hostId is obtained from the authenticated user's token
-    
+        const pgDetailsId = req.params.pgDetailsId
         // Fetch the PG details based on the host's ID
-        const pgDetails = await PgDetails.findOne({ host : hostId })
-    
+        const pgDetails = await PgDetails.findOne({ host : hostId , _id : pgDetailsId})
+        console.log(pgDetails)
         if (!pgDetails) {
           return res.json({ error: 'No PG details found for the host.' })
         }
@@ -120,8 +124,9 @@ ratingsAndReviewsControllers.averageRating = async (req, res) => {
 ratingsAndReviewsControllers.listAllReviewsForPGAdmin = async (req, res) => {
     try{
         const hostId = req.user.id
+        const pgDetailsId = req.params.pgDetailsId
         // fetch the pgDetails by using hostId from the token
-        const pgDetails = await PgDetails.findOne({host : hostId})
+        const pgDetails = await PgDetails.findOne({host : hostId, _id : pgDetailsId})
         console.log('pgDetails', pgDetails)
         if (!pgDetails) {
             return res.json({ error: 'No PG details found for the host.' })

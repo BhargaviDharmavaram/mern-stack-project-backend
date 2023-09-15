@@ -6,7 +6,7 @@ const authorizeUser = require('../middlewares/authorization')
 const upload = require('../middlewares/multer')
 
 // Get all residents in a particular PG (for PG Admin)
-router.get('/getResidents', authenticateUser, (req, res, next)=>{
+router.get('/getResidents/:pgDetailsId', authenticateUser, (req, res, next)=>{
     req.permittedRoles = ['pg_admin']
     next()
 }, authorizeUser, residentsControllers.getResidents)
@@ -47,7 +47,7 @@ router.put('/updateResident/:residentId', upload.fields([
 }, authorizeUser, residentsControllers.update)
 
 // Delete a resident from a PG (for PG Admin)
-router.delete('/destroyResident/:id', authenticateUser, (req, res, next)=>{
+router.delete('/destroyResident/:residentId', authenticateUser, (req, res, next)=>{
     req.permittedRoles = ['pg_admin']
     next()
 }, authorizeUser, residentsControllers.destroy)

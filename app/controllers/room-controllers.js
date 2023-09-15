@@ -1,11 +1,13 @@
 const Room = require('../models/room-model')
+const PgDetails = require('../models/pg-details-model')
 const Residents = require('../models/resident-model')
 const roomControllers = {}
 
 roomControllers.listAllRooms = async(req,res)=>{
     try {
         const hostId = req.user.id
-        const rooms= await Room.find({hostId : hostId})
+        const pgDetailsId = req.query.pgDetailsId
+        const rooms= await Room.find({hostId : hostId, pgDetailsId : pgDetailsId})
         res.json(rooms)
     }
     catch(e){
@@ -13,11 +15,23 @@ roomControllers.listAllRooms = async(req,res)=>{
     }
 }
 // used to show the available rooms i.e when isAvailable is false to the resident 
-roomControllers.listAvailableRooms = async (req, res) => {
+// roomControllers.listAvailableRooms = async (req, res) => {
+//     try {
+//         const hostId = req.user.id
+//         console.log('hostId', hostId)
+//         const availableRooms = await Room.find({ hostId : hostId, isAvailable: false })
+//         res.json(availableRooms)
+//     } catch (e) {
+//         res.status(404).json(e.message)
+//     }
+// }
+
+// Controller to get available rooms for a selected PG
+roomControllers.listAvailableRoomsForPG = async (req, res) => {
     try {
         const hostId = req.user.id
-        console.log('hostId', hostId)
-        const availableRooms = await Room.find({ hostId : hostId, isAvailable: false })
+        const pgDetailsId = req.query.pgDetailsId // Retrieve pgDetailsId from query parameters
+        const availableRooms = await Room.find({ pgDetailsId: pgDetailsId, hostId : hostId, isAvailable: false })
         res.json(availableRooms)
     } catch (e) {
         res.status(404).json(e.message)
@@ -38,12 +52,24 @@ roomControllers.listAvailableRoomsForResident = async (req, res) => {
 
 
 // used to show the nonavailable rooms i.e when isAvailable is true to the admin i.e filled rooms
-roomControllers.listNonAvailableRooms = async (req, res) => {
+// roomControllers.listNonAvailableRooms = async (req, res) => {
+//     try {
+//         const hostId = req.user.id
+
+//         const nonAvailableRooms = await Room.find({ hostId : hostId, isAvailable: true })
+//         res.json(nonAvailableRooms)
+//     } catch (e) {
+//         res.status(404).json(e.message)
+//     }
+// }
+
+// Controller to get unavailable rooms for a selected PG
+roomControllers.listUnAvailableRoomsForPG = async (req, res) => {
     try {
         const hostId = req.user.id
-
-        const nonAvailableRooms = await Room.find({ hostId : hostId, isAvailable: true })
-        res.json(nonAvailableRooms)
+        const pgDetailsId = req.query.pgDetailsId // Retrieve pgDetailsId from query parameters
+        const availableRooms = await Room.find({ pgDetailsId: pgDetailsId, hostId : hostId, isAvailable: true })
+        res.json(availableRooms)
     } catch (e) {
         res.status(404).json(e.message)
     }
@@ -53,7 +79,8 @@ roomControllers.singleRoomInParticularPg = async (req, res) => {
     try {
         const roomId = req.params.roomId
         const pgDetailsId = req.query.pgDetailsId
-        const room = await Room.findOne({_id: roomId, pgDetailsId: pgDetailsId }).populate('pgDetailsId', 'name')
+        const hostId = req.user.id
+        const room = await Room.findOne({_id: roomId, pgDetailsId: pgDetailsId, hostId : hostId }).populate('pgDetailsId', 'name')
         
         if (!room) {
             return res.status(404).json({ message: 'Room not found' })
@@ -68,32 +95,36 @@ roomControllers.create = async (req, res) => {
     try {
         const body = req.body
         const pgDetailsId = req.params.pgDetailsId
-        console.log('pgId', pgDetailsId)
         const hostId = req.user.id
-    
+
+        // Check if the host owns the specified PG
+        const pgDetails = await PgDetails.findOne({ _id: pgDetailsId, host: hostId })
+
+        if (!pgDetails) {
+        // Return an error if the host does not own the PG
+        return res.status(404).json({ message: 'PG not found or unauthorized' })
+        }
+
         // Create an array to store the newly created rooms
         const newRooms = []
-    
-        for (let i = 0; i < body.roomNumber.length; i++) {
-            console.log('Creating room:', body.roomNumber[i], body.floor[i])
-            // Create a new room
-            const newRoom = new Room({
+
+        for (let i = 0 ;i < body.roomNumber.length ; i++) {
+        // Create a new room
+        const newRoom = new Room({
             sharing: body.sharing,
             roomNumber: body.roomNumber[i],
             floor: body.floor[i],
             pgDetailsId: pgDetailsId,
             hostId,
-            })
-            
-            // Save the room to the database
-            await newRoom.save()
-            newRooms.push(newRoom)
-            // console.log('Room created:', newRoom)
+        })
+
+        // Save the room to the database
+        await newRoom.save()
+        newRooms.push(newRoom)
         }
-        //   console.log('Sending response with newRooms:', newRooms)
-    
-    
+
         res.status(201).json({ message: 'Rooms added successfully', rooms: newRooms })
+
     } catch (error) {
         console.error(error)
         res.status(404).json({ message: 'Bad Request' })
@@ -104,40 +135,65 @@ roomControllers.create = async (req, res) => {
 roomControllers.destroy = async (req, res) => {
     try {
         const roomId = req.params.roomId
+        const pgDetailsId = req.query.pgDetailsId
+        const hostId = req.user.id
 
-        // Check if there are residents in the room
-        const residentsInRoom = await Residents.findOne({ roomId : roomId , hostId : req.user.id})
-        //console.log('residents', residentsInRoom)
+        // Check if the room with roomId exists and belongs to the specified pgDetailsId
+        const room = await Room.findOne({ _id: roomId, pgDetailsId: pgDetailsId , hostId : hostId})
+
+        if (!room) {
+            return res.status(404).json({ message: 'Room not found or does not belong to the specified Pg Details.' })
+        }
+
+        // Check if there are residents in the room for the specified pgDetailsId
+        const residentsInRoom = await Residents.findOne({
+            roomId: roomId,
+            pgDetailsId: pgDetailsId
+        })
+
         if (residentsInRoom) {
             // If there are residents, send an error response
-            res.json({ message: 'Cannot delete room. Residents are occupying the room.' })
-        } else {
-            // No residents in the room, so you can proceed to delete the room
-            const response = await Room.findOneAndDelete({ _id: roomId })
-            
-            if (!response) {
-                res.status(404).json({ message: 'Room not found.' })
-            }
-
-            // Room deleted successfully, send a success response
-            res.json(response)
+            return res.status(400).json({ message: 'Cannot delete room. Residents are occupying the room.' })
         }
+
+        const response = await Room.findOneAndDelete({ _id: roomId })
+
+        // Room deleted successfully, send a success response
+        res.json({ message: 'Room deleted successfully', deletedRoom: response })
     } catch (e) {
         res.status(500).json({ error: e.message })
     }
 }
 
-
 roomControllers.update = async(req,res)=>{
-    try{
+    try {
         const body = req.body
-        const id = req.params.id
-        const response = await Room.findOneAndUpdate({_id : id},body,{new:true,runValidators:true})
-        const updateRoom = response
-        res.json(updateRoom)
-    }
-    catch(e){
-        res.status(404).json(e.message)
+        const roomId = req.params.roomId
+        const pgDetailsId = req.query.pgDetailsId
+        const hostId = req.user.id 
+
+        // Check if the room with roomId exists and belongs to the specified pgDetailsId
+        const room = await Room.findOne({ _id: roomId, hostId : hostId, pgDetailsId: pgDetailsId })
+
+        if (!room) {
+            return res.status(404).json({ message: 'Room not found or does not belong to the specified Pg Details.' })
+        }
+
+        // Check if the pg_admin has permission to update the room based on their role or other criteria
+        const pg = await PgDetails.findOne({ host : hostId, _id: pgDetailsId })
+
+        if (!pg) {
+            return res.status(403).json({ message: 'Unauthorized. You do not have permission to update this room.' })
+        }
+
+        // If the user is authorized, proceed to update the room
+        const response = await Room.findOneAndUpdate({ _id: roomId }, body, { new: true, runValidators: true })
+
+        // Room updated successfully, send a success response
+        res.json(response)
+    } catch (e) {
+        console.error('Error:', e)
+        res.status(500).json({ error: e.message })
     }
 }
 

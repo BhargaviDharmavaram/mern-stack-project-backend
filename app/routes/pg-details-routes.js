@@ -19,13 +19,13 @@ router.get('/allPgs', authenticateUser, (req, res, next)=>{
 }, authorizeUser, pgDetailsControllers.allPgList)
 
 //for getting Admin PG details by authenticated id from token
-router.get('/getAdminPg', authenticateUser,(req, res, next)=>{
-    req.permittedRoles = ['pg_admin']
-    next()
-}, authorizeUser, pgDetailsControllers.getAdminPg )
+// router.get('/getAdminPg', authenticateUser,(req, res, next)=>{
+//     req.permittedRoles = ['pg_admin']
+//     next()
+// }, authorizeUser, pgDetailsControllers.getAdminPg )
 
 // Show details of a single PG by ID
-router.get('/showSinglePg/:id', authenticateUser, (req, res, next)=>{
+router.get('/showSinglePg/:pgDetailsId', authenticateUser, (req, res, next)=>{
     req.permittedRoles = ['pg_resident']
     next()
 }, authorizeUser, pgDetailsControllers.showsinglePg)
@@ -41,5 +41,11 @@ router.delete('/destroyPg/:id', authenticateUser, (req, res, next)=>{
     req.permittedRoles = ['pg_admin']
     next()
 }, authorizeUser, pgDetailsControllers.destroy)
+
+//find the Pgs for host
+router.get('/getPgsForAdmin',authenticateUser, (req, res, next)=>{
+    req.permittedRoles = ['pg_admin']
+    next()
+}, authorizeUser, pgDetailsControllers.getAllPgForAdmin)
 
 module.exports = router

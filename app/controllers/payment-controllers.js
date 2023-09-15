@@ -1,4 +1,3 @@
-
 const crypto = require('crypto')
 const Payment = require('../models/payment-model')
 const Residents = require('../models/resident-model')
@@ -15,11 +14,12 @@ const razorpay = new Razorpay({
 paymentsControllers.sendPaymentReminders = async (req, res) => {
     try {
         const pgDetailsId = req.params.pgDetailsId
+        const hostId = req.user.id
 
         // Fetch PG details using pgDetailsId
-        const pgDetails = await PgDetails.findById(pgDetailsId)
+        const pgDetails = await PgDetails.findOne({_id : pgDetailsId, host : hostId})
         if (!pgDetails) {
-            return res.status(404).json({ error: 'PG details not found' })
+            return res.status(404).json({ error: 'PG details not found or unauthorized access' })
         }
 
         // Fetch residents of the specific PG using pgDetailsId and populate the roomId field
@@ -160,22 +160,23 @@ paymentsControllers.getCompletedPayments = async (req, res) => {
     try {
         const hostId = req.user.id
         console.log('hostId', hostId)
+        const pgDetailsId = req.params.pgDetailsId // Get the selected PG's ID from the request parameters
 
-        // Step 1: Find the PG associated with the host using hostId
-        const pg = await PgDetails.findOne({ host: hostId })
+        // Fetch PG details using pgDetailsId
+        const pg = await PgDetails.findOne({_id : pgDetailsId , host : hostId})
 
         if (!pg) {
-            return res.status(404).json({ error: 'PG not found for the host' })
+            return res.status(404).json({ error: 'PG details not found or unauthorized access' })
         }
 
-        // Step 2: Fetch pending payments for the PG, excluding payments for deleted residents
-        const completedPayments = await Payment.find({ pgDetailsId: pg._id, status: 'completed' })
-            .populate({
-                path: 'residentId',
-                select: 'name email deleted',
-                match: { deleted: false } // Exclude deleted residents
-            })
-            .populate('pgDetailsId', 'name')
+        // Fetch completed payments for the selected PG, excluding payments for deleted residents
+        const completedPayments = await Payment.find({ pgDetailsId: pgDetailsId, status: 'completed' })
+        .populate({
+            path: 'residentId',
+            select: 'name email deleted',
+            match: { deleted: false } // Exclude deleted residents
+        })
+        .populate('pgDetailsId', 'name')
 
         // Filter out payments where residentId is null (resident deleted) or deleted is true
         const filteredCompletedPayments = completedPayments.filter((ele) => {
@@ -194,21 +195,24 @@ paymentsControllers.getPendingPayments = async (req, res) => {
         const hostId = req.user.id
         console.log('hostId', hostId)
 
-        // Step 1: Find the PG associated with the host using hostId
-        const pg = await PgDetails.findOne({ host: hostId })
+        const pgDetailsId = req.params.pgDetailsId // Get the selected PG's ID from the request parameters
+
+        // Fetch PG details using pgDetailsId
+        const pg = await PgDetails.findOne({_id : pgDetailsId , host : hostId})
 
         if (!pg) {
-            return res.status(404).json({ error: 'PG not found for the host' })
+            return res.status(404).json({ error: 'PG details not found or unauthorized access ' })
         }
 
-        // Step 2: Fetch pending payments for the PG, excluding payments for deleted residents
-        const pendingPayments = await Payment.find({ pgDetailsId: pg._id, status: 'pending' })
-            .populate({
-                path: 'residentId',
-                select: 'name email deleted',
-                match: { deleted: false } // Exclude deleted residents
-            })
-            .populate('pgDetailsId', 'name')
+        // Fetch completed payments for the selected PG, excluding payments for deleted residents
+        const pendingPayments = await Payment.find({ pgDetailsId: pgDetailsId, status: 'pending' })
+        .populate({
+            path: 'residentId',
+            select: 'name email deleted',
+            match: { deleted: false } // Exclude deleted residents
+        })
+        .populate('pgDetailsId', 'name')
+
 
         // Filter out payments where residentId is null (resident deleted) or deleted is true
         const filteredPendingPayments = pendingPayments.filter((ele) => {
@@ -226,20 +230,23 @@ paymentsControllers.getCompletedPaymentsTotal = async (req, res) => {
     try {
         const hostId = req.user.id
 
-        // Step 1: Find the PG associated with the host using hostId
-        const pg = await PgDetails.findOne({ host: hostId })
+        const pgDetailsId = req.params.pgDetailsId // Get the selected PG's ID from the request parameters
+
+        // Fetch PG details using pgDetailsId
+        const pg = await PgDetails.findOne({_id : pgDetailsId , host : hostId})
 
         if (!pg) {
-            return res.status(404).json({ error: 'PG not found for the host' })
+            return res.status(404).json({ error: 'PG details not found or unauthorized access' })
         }
 
-        // Step 2: Fetch completed payments for the PG
-        const completedPayments = await Payment.find({ pgDetailsId: pg._id, status: 'completed' })
+        // Fetch completed payments for the selected PG, excluding payments for deleted residents
+        const completedPayments = await Payment.find({ pgDetailsId: pgDetailsId, status: 'completed' })
         .populate({
             path: 'residentId',
             select: 'name email deleted',
             match: { deleted: false } // Exclude deleted residents
         })
+        .populate('pgDetailsId', 'name')
 
         // Calculate total amount for completed payments, excluding payments for deleted residents
         const totalCompletedAmount = completedPayments.reduce((total, payment) => {
@@ -260,20 +267,24 @@ paymentsControllers.getPendingPaymentsTotal = async (req, res) => {
     try {
         const hostId = req.user.id
 
-        // Step 1: Find the PG associated with the host using hostId
-        const pg = await PgDetails.findOne({ host: hostId })
+        const pgDetailsId = req.params.pgDetailsId // Get the selected PG's ID from the request parameters
+
+        // Fetch PG details using pgDetailsId
+        const pg = await PgDetails.findOne({_id : pgDetailsId , host : hostId})
 
         if (!pg) {
-            return res.status(404).json({ error: 'PG not found for the host' })
+            return res.status(404).json({ error: 'PG details not found or unauthorized access ' })
         }
 
-        // Step 2: Fetch pending payments for the PG
-        const pendingPayments = await Payment.find({ pgDetailsId: pg._id, status: 'pending' })
+        // Fetch completed payments for the selected PG, excluding payments for deleted residents
+        const pendingPayments = await Payment.find({ pgDetailsId: pgDetailsId, status: 'pending' })
         .populate({
             path: 'residentId',
             select: 'name email deleted',
             match: { deleted: false } // Exclude deleted residents
         })
+        .populate('pgDetailsId', 'name')
+
 
        // Calculate total amount for completed payments, excluding payments for deleted residents
        const totalPendingAmount = pendingPayments.reduce((total, payment) => {

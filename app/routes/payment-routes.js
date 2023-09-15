@@ -25,22 +25,22 @@ router.get('/getPaymentDetails/:razorPayId', paymentsControllers.getRazorPayId)
 // Confirm payment status
 router.post('/payment/confirmation',  paymentsControllers.paymentConfirmation)
 
-router.get('/getCompletedPayments', authenticateUser, (req, res, next) => {
+router.get('/getCompletedPayments/:pgDetailsId', authenticateUser, (req, res, next) => {
     req.permittedRoles = ['pg_admin']
     next()
 }, authorizeUser, paymentsControllers.getCompletedPayments)
 
-router.get('/getPendingPayments', authenticateUser, (req, res, next) => {
+router.get('/getPendingPayments/:pgDetailsId', authenticateUser, (req, res, next) => {
     req.permittedRoles = ['pg_admin']
     next()
 }, authorizeUser, paymentsControllers.getPendingPayments)
 
-router.get('/getCompletedPaymentsTotal', authenticateUser, (req, res, next) => {
+router.get('/getCompletedPaymentsTotal/:pgDetailsId', authenticateUser, (req, res, next) => {
     req.permittedRoles = ['pg_admin']
     next()
 }, authorizeUser, paymentsControllers.getCompletedPaymentsTotal)
 
-router.get('/getPendingPaymentsTotal', authenticateUser, (req, res, next) => {
+router.get('/getPendingPaymentsTotal/:pgDetailsId', authenticateUser, (req, res, next) => {
     req.permittedRoles = ['pg_admin']
     next()
 }, authorizeUser, paymentsControllers.getPendingPaymentsTotal)

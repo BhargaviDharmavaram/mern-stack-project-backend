@@ -19,21 +19,10 @@ pgDetailsControllers.allPgList = async (req, res) =>{
     }
 }
 
-pgDetailsControllers.getAdminPg = async (req, res) => {
-    try{
-        const hostId = req.user.id
-        const PG = await PgDetails.findOne({host : hostId})
-        res.json(PG)
-
-    }catch(e){
-        res.json(e.message)
-    }
-}
-
 pgDetailsControllers.showsinglePg = async (req, res) => {
     try{
-        const id = req.params.id
-        const showPg = await PgDetails.findOne({_id: id}).populate({
+        const pgDetailsId = req.params.pgDetailsId
+        const showPg = await PgDetails.findOne({_id: pgDetailsId}).populate({
             path: 'reviews',
             select: 'review residentId',
             populate: {
@@ -84,6 +73,7 @@ pgDetailsControllers.createPg = async (req, res) => {
 pgDetailsControllers.update = async (req, res) => {
     try {
         const id = req.params.id
+        const hostId = req.user.id
         const body = req.body
         let update = {}
 
@@ -93,7 +83,7 @@ pgDetailsControllers.update = async (req, res) => {
         }
 
         // Fetch the existing document
-        const existingPg = await PgDetails.findOne({ _id: id })
+        const existingPg = await PgDetails.findOne({ _id: id, host: hostId })
 
         // Check if the user-provided address is different from the existing address
         if (body.address && existingPg && existingPg.address !== body.address) {
@@ -142,9 +132,22 @@ pgDetailsControllers.update = async (req, res) => {
 pgDetailsControllers.destroy = async (req, res) => {
     try{
        const id = req.params.id
-       const response = await PgDetails.findOneAndDelete({_id : id})
+       const hostId = req.user.id
+       const response = await PgDetails.findOneAndDelete({_id : id, host : hostId})
        res.json(response) 
 
+    }catch(e){
+        res.status(404).json({ error: e.message })
+    }
+}
+
+
+//for finding the PGs for admin - how many PGs he/she  have
+pgDetailsControllers.getAllPgForAdmin = async (req, res) => {
+    try{
+        const hostId = req.user.id
+        const allPgsForHost = await PgDetails.find({host : hostId})
+        res.json(allPgsForHost)
     }catch(e){
         res.status(404).json({ error: e.message })
     }

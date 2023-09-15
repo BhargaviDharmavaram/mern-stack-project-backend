@@ -23,7 +23,7 @@ router.post('/addRoom/:pgDetailsId', authenticateUser, (req, res, next)=>{
 }, authorizeUser, roomControllers.create)
 
 // Update a room by PG Admin
-router.put('/updateRoom/:id', authenticateUser, (req, res, next)=>{
+router.put('/updateRoom/:roomId', authenticateUser, (req, res, next)=>{
     req.permittedRoles = ['pg_admin']
     next()
 }, authorizeUser, roomControllers.update)
@@ -38,7 +38,7 @@ router.delete('/destroyRoom/:roomId', authenticateUser, (req, res, next)=>{
 router.get('/availableRooms', authenticateUser, (req, res, next)=>{
     req.permittedRoles = ['pg_admin']
     next()
-}, authorizeUser, roomControllers.listAvailableRooms)
+}, authorizeUser, roomControllers.listAvailableRoomsForPG)
 
 router.get('/availableRoomsForResident/:pgDetailsId',authenticateUser, (req, res, next)=>{
     req.permittedRoles = ['pg_resident']
@@ -49,6 +49,6 @@ router.get('/availableRoomsForResident/:pgDetailsId',authenticateUser, (req, res
 router.get('/unAvailableRooms', authenticateUser, (req, res, next)=>{
     req.permittedRoles = ['pg_admin']
     next()
-}, authorizeUser, roomControllers.listNonAvailableRooms)
+}, authorizeUser, roomControllers.listUnAvailableRoomsForPG)
 
 module.exports = router

@@ -14,17 +14,6 @@ roomControllers.listAllRooms = async(req,res)=>{
         res.status(404).json(e.message)
     }
 }
-// used to show the available rooms i.e when isAvailable is false to the resident 
-// roomControllers.listAvailableRooms = async (req, res) => {
-//     try {
-//         const hostId = req.user.id
-//         console.log('hostId', hostId)
-//         const availableRooms = await Room.find({ hostId : hostId, isAvailable: false })
-//         res.json(availableRooms)
-//     } catch (e) {
-//         res.status(404).json(e.message)
-//     }
-// }
 
 // Controller to get available rooms for a selected PG
 roomControllers.listAvailableRoomsForPG = async (req, res) => {
@@ -49,19 +38,6 @@ roomControllers.listAvailableRoomsForResident = async (req, res) => {
     }
 }
 
-
-
-// used to show the nonavailable rooms i.e when isAvailable is true to the admin i.e filled rooms
-// roomControllers.listNonAvailableRooms = async (req, res) => {
-//     try {
-//         const hostId = req.user.id
-
-//         const nonAvailableRooms = await Room.find({ hostId : hostId, isAvailable: true })
-//         res.json(nonAvailableRooms)
-//     } catch (e) {
-//         res.status(404).json(e.message)
-//     }
-// }
 
 // Controller to get unavailable rooms for a selected PG
 roomControllers.listUnAvailableRoomsForPG = async (req, res) => {
@@ -102,7 +78,7 @@ roomControllers.create = async (req, res) => {
 
         if (!pgDetails) {
         // Return an error if the host does not own the PG
-        return res.status(404).json({ message: 'PG not found or unauthorized' })
+        return res.json({ message: 'PG not found or unauthorized' })
         }
 
         // Create an array to store the newly created rooms
@@ -123,7 +99,7 @@ roomControllers.create = async (req, res) => {
         newRooms.push(newRoom)
         }
 
-        res.status(201).json({ message: 'Rooms added successfully', rooms: newRooms })
+        res.status(201).json(newRooms)
 
     } catch (error) {
         console.error(error)
@@ -137,12 +113,14 @@ roomControllers.destroy = async (req, res) => {
         const roomId = req.params.roomId
         const pgDetailsId = req.query.pgDetailsId
         const hostId = req.user.id
+        console.log('roomId', roomId)
+        console.log('pgDetailsId', pgDetailsId)
 
         // Check if the room with roomId exists and belongs to the specified pgDetailsId
         const room = await Room.findOne({ _id: roomId, pgDetailsId: pgDetailsId , hostId : hostId})
 
         if (!room) {
-            return res.status(404).json({ message: 'Room not found or does not belong to the specified Pg Details.' })
+            return res.json({ message: 'Room not found or does not belong to the specified Pg Details.' })
         }
 
         // Check if there are residents in the room for the specified pgDetailsId
@@ -151,15 +129,16 @@ roomControllers.destroy = async (req, res) => {
             pgDetailsId: pgDetailsId
         })
 
+        console.log('residentsInRoom', residentsInRoom)
         if (residentsInRoom) {
             // If there are residents, send an error response
-            return res.status(400).json({ message: 'Cannot delete room. Residents are occupying the room.' })
+            return res.json({ message: 'Cannot delete room. Residents are occupying the room.' })
         }
 
         const response = await Room.findOneAndDelete({ _id: roomId })
 
         // Room deleted successfully, send a success response
-        res.json({ message: 'Room deleted successfully', deletedRoom: response })
+        res.json(response)
     } catch (e) {
         res.status(500).json({ error: e.message })
     }

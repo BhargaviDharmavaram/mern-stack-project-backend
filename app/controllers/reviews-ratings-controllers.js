@@ -1,6 +1,8 @@
 const ReviewsAndRatings = require('../models/reviews-ratings-model')
 const Residents = require('../models/resident-model')
 const PgDetails = require('../models/pg-details-model')
+const User = require('../models/users-model')
+const sendMail = require('../helpers/nodemailer')
 
 
 const ratingsAndReviewsControllers = {}
@@ -49,6 +51,21 @@ ratingsAndReviewsControllers.addReview = async (req, res) => {
         // Add the review to PG details' reviews array
         pgDetails.reviews.push(newReview)
         await pgDetails.save()
+
+
+        // Fetch the PG owner's host : _id that is ref to user model  from PgDetails and use it to fetch the owner's email from User model
+        const pgOwnerId = pgDetails.host
+        const pgOwner = await User.findById(pgOwnerId)
+        console.log('pgOwner', pgOwner.email)
+
+        if (pgOwner) {
+            // Construct the email subject and text
+            const subject = 'New Review Added'
+            const text = `A new review has been added to your PG by a resident. Resident Name: ${resident.name}`
+
+            // Send the email notification to the PG owner
+            await sendMail(pgOwner.email, subject, text)
+        }
 
         res.status(201).json({
                 ...newReview.toObject(),

@@ -1,6 +1,7 @@
 const crypto = require('crypto')
 const Payment = require('../models/payment-model')
 const Residents = require('../models/resident-model')
+const User = require('../models/users-model')
 const PgDetails = require('../models/pg-details-model')
 const Razorpay = require('razorpay')
 const sendMail = require('../helpers/nodemailer')
@@ -145,14 +146,30 @@ paymentsControllers.paymentConfirmation = async (req, res) => {
 
         // Send payment confirmation email to resident
         const paymentMonth = payment.paymentDate.toLocaleString('default', { month: 'long' })
-        const emailSubject = 'Payment Confirmation'
-        const emailText = `Dear ${payment.residentId.name},\n\nYour rent payment for ${paymentMonth.toUpperCase()} month has been successfully received. \n\n Your payment done on ${payment.paymentDate.toLocaleDateString()} for ${paymentMonth} month. \n\nThank you for your prompt payment!\n\nRegards,\nThe PG Team`
-        sendMail(payment.residentId.email, emailSubject, emailText)
+        const residentEmailSubject = 'Payment Confirmation'
+        const residentEmailText = `Dear ${payment.residentId.name},\n\nYour rent payment for ${paymentMonth.toUpperCase()} month has been successfully received. \n\nYour payment done on ${payment.paymentDate.toLocaleDateString()} for ${paymentMonth} month. \n\nThank you for your prompt payment!\n\nRegards,\nThe PG Team`
+
+        // Send payment confirmation email to PG owner
+        const pgDetails = await PgDetails.findById(payment.pgDetailsId)
+        const pgOwnerId = pgDetails.host
+        const pgOwner = await User.findById(pgOwnerId)
+
+        if (!pgOwner) {
+            console.error('PG owner not found')
+        } else {
+            const pgOwnerEmailSubject = 'Payment Received'
+            const pgOwnerEmailText = `Dear ${pgOwner.username},\n\nA rent payment for ${paymentMonth.toUpperCase()} month has been received from ${payment.residentId.name}. \n\n Payment details:\n Resident Name: ${payment.residentId.name}\n Amount: ${payment.amount}\n Payment Date: ${payment.paymentDate.toLocaleDateString()}.`
+
+            await sendMail(payment.residentId.email, residentEmailSubject, residentEmailText)
+            await sendMail(pgOwner.email, pgOwnerEmailSubject, pgOwnerEmailText)
+
+            console.log(`Payment confirmation emails sent to ${payment.residentId.name} and PG owner: ${pgOwner.username}`)
+        }
 
         res.status(200).json({ message: 'Payment confirmed and status updated' })
     } catch (error) {
         console.error('Error confirming payment:', error)
-        res.status(404).json({ error: e.message })
+        res.status(404).json({ error: error.message })
     }
 }
 

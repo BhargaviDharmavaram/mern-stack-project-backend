@@ -346,8 +346,11 @@ residentsControllers.getDeletedResidents = async(req, res) => {
             deleted: true
         }).populate('pgDetailsId', 'name')
         
-        console.log('deletedResidents', deletedResidents)
-        res.json(deletedResidents)
+        if (deletedResidents.length > 0) {
+            res.json(deletedResidents)
+        } else {
+            res.json({ message: 'No vacated residents found' })
+        }
     } catch (error) {
         res.status(500).json({ error: error.message })
     }

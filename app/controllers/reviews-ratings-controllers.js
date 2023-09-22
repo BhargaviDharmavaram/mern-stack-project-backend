@@ -35,8 +35,8 @@ ratingsAndReviewsControllers.addReview = async (req, res) => {
 
         // Check if the resident has already written 2 reviews
         const residentReviews = await ReviewsAndRatings.find({ residentId: resident._id })
-        if (residentReviews.length >= 2) {
-            return res.status(400).json({ error: 'You have already submitted the maximum allowed number of reviews (2)' })
+        if (residentReviews.length >= 1) {
+            return res.status(400).json({ error: 'You have already submitted the maximum allowed number of reviews.' })
         }
 
         // Create a new review
@@ -44,6 +44,7 @@ ratingsAndReviewsControllers.addReview = async (req, res) => {
             ...body,
             pgDetailsId: pgDetails._id,
             residentId: resident._id,
+            residentName : resident.name
         })
 
         await newReview.save()
@@ -66,12 +67,7 @@ ratingsAndReviewsControllers.addReview = async (req, res) => {
             // Send the email notification to the PG owner
             await sendMail(pgOwner.email, subject, text)
         }
-
-        res.status(201).json({
-                ...newReview.toObject(),
-                residentName: resident.name,
-            }
-        )
+        res.status(201).json(newReview)
     } catch (error) {
         console.log('error', error)
         res.status(500).json({ error: 'Internal server error' })

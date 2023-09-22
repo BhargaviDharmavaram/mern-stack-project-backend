@@ -16,6 +16,9 @@ const reviewSchema = new Schema({
         type: String,
         required: true
     },
+    residentName : {
+        type : String
+    },
     rating: {
         food :{
             type: Number,

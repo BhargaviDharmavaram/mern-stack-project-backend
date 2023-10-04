@@ -1,5 +1,6 @@
 const Residents = require('../models/resident-model')
 const PgDetails = require('../models/pg-details-model')
+const Payment = require('../models/payment-model')
 const Room = require('../models/room-model')
 const User = require('../models/users-model')
 const sendMail = require('../helpers/nodemailer')
@@ -32,8 +33,8 @@ residentsControllers.getResidents = async (req, res) => {
 
 residentsControllers.getSingleResidentInPGByHost = async (req, res) => {
     try {
-        const pgDetailsId = req.params.pgDetailsId // Extract PG ID from URL
-        const residentId = req.params.residentId // Extract resident ID from URL
+        const pgDetailsId = req.params.pgDetailsId 
+        const residentId = req.params.residentId 
 
         // Find a resident in the database that matches the given _id, pgDetailsId, and hostId
         const resident = await Residents.findOne({
@@ -48,8 +49,17 @@ residentsControllers.getSingleResidentInPGByHost = async (req, res) => {
             return res.status(404).json({ message: 'Resident not found in the specified PG for the given host' })
         }
 
-        // Respond with the resident's data
-        res.json(resident)
+        // Fetch payment details for this resident
+        const payments = await Payment.find({ residentId: resident._id })
+
+        // Combine resident and payment data
+        const residentWithPayments = {
+            ...resident.toObject(),
+            payments: payments
+        }
+
+        // Respond with the combined data
+        res.json(residentWithPayments)
     } catch (e) {
         res.status(404).json(e.message)
     }
@@ -70,8 +80,8 @@ residentsControllers.create = async (req, res) => {
             return res.status(400).json({ message: 'Profile image and Aadhar card are required.' })
         }
 
-        const profileImage = req.files.profileImage[0].filename
-        const aadharCard = req.files.aadharCard[0].filename
+        const profileImage = req.files.profileImage[0].location
+        const aadharCard = req.files.aadharCard[0].location
 
         // Check if the specified pgDetailsId matches the host's pgDetailsId
         const hostPgDetails = await PgDetails.findOne({ host: req.user.id, _id: pgDetailsId })
@@ -95,7 +105,6 @@ residentsControllers.create = async (req, res) => {
             .populate('pgDetailsId', 'name')
             .populate('roomId', 'sharing roomNumber floor ')
             .populate('hostId', 'username')
-            //console.log("populateResident :", populateResident)
         
         if (!populateResident) {
             return res.status(404).json({ message: 'Resident not found' })
@@ -157,17 +166,6 @@ residentsControllers.sendConfirmationLink = async (req, res) =>{
 
         res.json({ message: 'Confirmation link has been sent to your registered email.' });
 
-
-        // if(linkedUser){
-        //     const confirmationLink = `http://localhost:3000/confirm?user=${linkedUser._id}&resident=${residentId}`;
-        //     console.log(confirmationLink)//http://localhost:3000/confirm?user=64f0225ca2460af3a994edbb&residentId=64f08ff172eb077943c56f67
-
-        //     const emailSubject = 'Confirm Your Account'
-        //     const emailText = `click on the following link to confirm your account ${confirmationLink}`
-
-        //     sendMail(linkedUser.email,emailSubject, emailText)
-        // }
-        // res.json({message : "Confirmation link has been sent to your registered email "})
     }catch(e){
         console.log(e.message)
     }
@@ -238,13 +236,13 @@ residentsControllers.update = async (req, res) => {
 
         // Check and update the profileImage field
         if (req.files.profileImage) {
-            const profileImage = req.files.profileImage[0].filename
+            const profileImage = req.files.profileImage[0].location
             updateFields.profileImage = profileImage
         }
 
         // Check and update the aadharCard field
         if (req.files.aadharCard) {
-            const aadharCard = req.files.aadharCard[0].filename
+            const aadharCard = req.files.aadharCard[0].location
             updateFields.aadharCard = aadharCard
         }
 

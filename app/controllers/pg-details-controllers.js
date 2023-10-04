@@ -1,7 +1,41 @@
 const PgDetails = require('../models/pg-details-model')
 const axios = require('axios')
+  
 
 const pgDetailsControllers = {}
+
+pgDetailsControllers.createPg = async (req, res) => {
+    try {
+        const body = req.body
+
+        if (!req.files || req.files.length === 0) {
+            return res.status(400).json({ message: 'No files were uploaded.'})
+        }
+
+        const images = req.files.map(file => file.location)
+        //Perform geocoding here
+        const geocodingResponse = await axios.get('https://nominatim.openstreetmap.org/search', {
+            params: {
+                q: body.address,
+                format: 'json'
+            }
+        })
+
+        if (geocodingResponse.data && geocodingResponse.data.length > 0) {
+            const latitude = parseFloat(geocodingResponse.data[0].lat)
+            const longitude = parseFloat(geocodingResponse.data[0].lon)
+
+            // Create a new PgDetails instance with the geocoded values
+            const pg = new PgDetails({ ...body, images, geo: { lat: latitude, lng: longitude },host : req.user.id })
+            const pgDoc = await pg.save()
+            return res.json(pgDoc)
+        } else {
+            return res.json({ message: 'Address not found.' })
+        }  
+    } catch (error) {
+        res.status(404).json({ error: error.message })
+    }
+}
 
 pgDetailsControllers.allPgList = async (req, res) =>{
     try{
@@ -37,38 +71,6 @@ pgDetailsControllers.showsinglePg = async (req, res) => {
     }
 }
 
-pgDetailsControllers.createPg = async (req, res) => {
-    try {
-        const body = req.body
-
-        if (!req.files || req.files.length === 0) {
-            return res.status(400).json({ message: 'No files were uploaded.'})
-        }
-
-        const images = req.files.map(file => file.filename)
-        //Perform geocoding here
-        const geocodingResponse = await axios.get('https://nominatim.openstreetmap.org/search', {
-            params: {
-                q: body.address,
-                format: 'json'
-            }
-        })
-
-        if (geocodingResponse.data && geocodingResponse.data.length > 0) {
-            const latitude = parseFloat(geocodingResponse.data[0].lat)
-            const longitude = parseFloat(geocodingResponse.data[0].lon)
-
-            // Create a new PgDetails instance with the geocoded values
-            const pg = new PgDetails({ ...body, images, geo: { lat: latitude, lng: longitude },host : req.user.id })
-            const pgDoc = await pg.save()
-            return res.json(pgDoc)
-        } else {
-            return res.json({ message: 'Address not found.' })
-        }  
-    } catch (error) {
-        res.status(404).json({ error: error.message })
-    }
-}
 
 pgDetailsControllers.update = async (req, res) => {
     try {
@@ -78,7 +80,7 @@ pgDetailsControllers.update = async (req, res) => {
         let update = {}
 
         if (req.files && req.files.length > 0) {
-            const images = req.files.map(file => file.filename)
+            const images = req.files.map(file => file.location)
             update.images = images
         }
 

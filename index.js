@@ -43,7 +43,7 @@ app.use('/api/payments', paymentsRoutes)
 // Serve static files from the "public" directory
 app.use(express.static('public'))
 
-const port = 3800
+const port = process.env.PORT || 3800
 app.listen(port, ()=>{
     console.log('server is connecting on the port ', port)
 })

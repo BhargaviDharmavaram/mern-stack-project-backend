@@ -6,6 +6,7 @@ const authenticateUser = require('../middlewares/authentication')
 const authorizeUser = require('../middlewares/authorization')
 const paymentsControllers = require('../controllers/payment-controllers')
 
+
 // Create a rate limiter with your desired configuration
 const limiter = rateLimit({
     windowMs: 60 * 1000, // 1 minute window

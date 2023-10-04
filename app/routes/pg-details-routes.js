@@ -12,17 +12,13 @@ router.post('/createPg', upload.array('images', 5), authenticateUser,(req, res, 
     next()
 }, authorizeUser,  pgDetailsControllers.createPg)
 
+
 // List all PGs with resident details
 router.get('/allPgs', authenticateUser, (req, res, next)=>{
     req.permittedRoles = ['pg_resident']
     next()
 }, authorizeUser, pgDetailsControllers.allPgList)
 
-//for getting Admin PG details by authenticated id from token
-// router.get('/getAdminPg', authenticateUser,(req, res, next)=>{
-//     req.permittedRoles = ['pg_admin']
-//     next()
-// }, authorizeUser, pgDetailsControllers.getAdminPg )
 
 // Show details of a single PG by ID
 router.get('/showSinglePg/:pgDetailsId', authenticateUser, (req, res, next)=>{
